@@ -1,0 +1,17 @@
+[project]
+name = "polycrawler"
+version = "0.0.0"
+description = "Sports outcome calibration engine (RAG + fine-tuning + MLOps). Calibration-first, paper-only."
+requires-python = ">=3.11"
+# Phase 0 only needs the store + config. Deps are added per phase, not up front.
+dependencies = [
+    "duckdb>=1.1,<2",
+    "pyyaml>=6,<7",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -1,0 +1,14 @@
+# data is gitignored (DVC-tracked from Phase 7)
+/data/
+*.duckdb
+*.duckdb.wal
+
+# python / uv
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# local env
+.env

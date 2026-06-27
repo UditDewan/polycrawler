@@ -1,0 +1,11 @@
+services:
+  # Vector store for RAG retrieval (Phase 3). Stood up early so the infra exists.
+  qdrant:
+    image: qdrant/qdrant:latest   # ponytail: pin to a verified tag before Phase 3; unused until then
+    ports:
+      - "6333:6333"   # REST / dashboard
+      - "6334:6334"   # gRPC
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+
+  # MLflow tracking + registry lands in Phase 7 (kept out until then).

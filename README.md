@@ -1,0 +1,61 @@
+# Polycrawler
+
+A **calibrated** soccer-outcome forecaster combining RAG + a fine-tuned signal
+extractor + MLOps. Success = *when it says 70%, the event happens ~70% of the
+time* (Brier score, log loss, reliability diagrams on a leak-free backtest).
+Beating the market is upside, never the premise. **Paper-trading only — no live
+execution, ever.**
+
+## Scope (locked in Phase 0)
+
+| | Choice | Why |
+|---|---|---|
+| Sport | Soccer | — |
+| **History** (fit + leak-free backtest) | Club football, default EPL via **football-data.co.uk** | Many resolved games + historical closing odds → calibration is *provable* |
+| **Live** (forward paper-trade) | **2026 World Cup**, prices from **Polymarket** | Fresh, liquid, exciting; inherently leak-free (match hasn't happened) |
+| Storage / vectors | **DuckDB** + **Qdrant** | DuckDB's `ASOF JOIN` makes point-in-time correctness native |
+
+> The World Cup alone can't prove calibration (~104 live matches, no historical
+> replay). So we *fit and backtest on history* and *forward-test on the World Cup*
+> with the same pipeline.
+
+## The one invariant
+
+Every feature for a match may use only observations with `ts < kickoff`. Enforced
+architecturally: `TIMESTAMPTZ` columns, DuckDB `ASOF JOIN`, and an
+`assert_no_leakage()` guard with a dedicated test suite (`tests/test_asof.py`).
+
+## Run it
+
+```bash
+uv sync                              # create venv + install (duckdb, pyyaml, pytest)
+# behind a TLS-intercepting proxy? add --system-certs to uv commands
+uv run python -m src.common.asof     # as-of self-check (prints "asof demo OK ...")
+uv run pytest -q                     # full suite incl. the leakage tests
+docker compose up -d qdrant          # vector store (not used until Phase 3)
+```
+
+**What to look for:** the demo prints `asof demo OK ...`; `pytest` is green. The
+leakage tests prove that an observation exactly at or after kickoff — including a
+timezone trap (`14:00 -05:00` = `19:00Z`) — is excluded from features and that a
+naive raw join is *caught*, not silently allowed.
+
+## Layout
+
+```
+src/common/      # schema, time/as-of utilities, config  <- Phase 0 lives here
+src/ingestion/   # (A) collectors            Phase 1
+src/extraction/  # (B) fine-tuned extractor  Phase 2
+src/retrieval/   # (C) RAG                    Phase 3
+src/prediction/  # (D) model + calibration   Phase 4
+eval/            # leak-free backtest         Phase 5  (centerpiece)
+src/decision/    # (E) paper trading          Phase 6
+src/mlops/       # (F) tracking/drift/CI gate Phase 7
+config/default.yaml
+tests/           # incl. the leakage suite
+```
+
+## Status
+
+- [x] **Phase 0** — scaffold + point-in-time schema/as-of utilities + leakage tests
+- [ ] Phase 1 — ingestion

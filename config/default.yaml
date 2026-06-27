@@ -1,0 +1,44 @@
+# Polycrawler config. Phase 0 locks the alignment decisions; later phases fill blanks.
+sport: soccer
+
+# --- History: fit + leak-free backtest. Calibration is PROVEN here (many resolved games). ---
+history:
+  provider: football-data.co.uk          # free CSVs, decades of leagues + closing odds, no key
+  leagues: [E0]                          # E0 = English Premier League (football-data.co.uk code)
+  seasons: ["2021-2022", "2022-2023", "2023-2024", "2024-2025"]
+  odds_columns: { home: B365H, draw: B365D, away: B365A }   # -> de-vig to implied prob
+
+# --- Live: real-time ingestion + forward paper-trading. Inherently leak-free (game hasn't happened). ---
+live:
+  competition: fifa-world-cup-2026
+  market_source: polymarket              # read-only public prices only; NO trading
+
+# --- Pluggable collectors (Phase 1). Any source can be disabled. ---
+sources:
+  reddit:
+    enabled: true
+    subreddits: [soccer]                 # OAuth app required; ~100 req/min, free non-commercial
+  news_rss:
+    enabled: true
+    feeds: []                            # filled in Phase 1
+  polymarket:
+    enabled: true                        # live market-implied prob (read-only public API)
+  football_data_couk:
+    enabled: true                        # historical results + closing odds (CSV)
+
+storage:
+  duckdb_path: data/polycrawler.duckdb
+  parquet_dir: data/parquet
+
+vector_store:
+  provider: qdrant
+  url: http://localhost:6333
+
+# Point-in-time correctness: features may only use observations with ts < kickoff.
+timing:
+  strict_before_kickoff: true
+
+# Placeholders used from Phase 4+; values here don't bind anything yet.
+thresholds:
+  min_edge: 0.02
+  kelly_fraction: 0.25                   # fractional Kelly (Phase 6)
