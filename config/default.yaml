@@ -37,6 +37,46 @@ vector_store:
   provider: qdrant
   url: http://localhost:6333
 
+# Hosted LLM (Phase 2+). Provider-agnostic, OpenAI-compatible. Confirm ids vs docs.
+llm:
+  provider: nvidia
+  base_url: https://integrate.api.nvidia.com/v1   # confirm vs build.nvidia.com docs
+  api_key_env: NVIDIA_API_KEY
+  extract_model: meta/llama-3.3-70b-instruct      # bulk extraction; confirm current id
+  reason_model: deepseek-ai/deepseek-r1           # optional, ambiguous cases
+  temperature: 0.0
+  max_tokens: 1024
+  max_retries: 3
+  cache_dir: data/llm_cache
+
+extraction:
+  signals_version: v1
+  prefilter:
+    kinds: [social, news]
+    min_chars: 24
+    keywords:                # >=1 must appear (relevance + cheap language gate)
+      - injur
+      - hamstring
+      - knock
+      - strain
+      - ruled out
+      - doubt
+      - fitness
+      - sidelined
+      - available
+      - suspend
+      - ban
+      - lineup
+      - starting xi
+      - out for
+      - miss
+      - return
+      - transfer
+      - manager
+      - sack
+      - recover
+      - illness
+
 # Point-in-time correctness: features may only use observations with ts < kickoff.
 timing:
   strict_before_kickoff: true

@@ -12,6 +12,8 @@ dependencies = [
     "praw>=7.7",
     "truststore>=0.9",   # use OS cert store (this network does TLS interception)
     "tzdata>=2024.1",    # zoneinfo needs this on Windows (Europe/London kickoffs)
+    "pydantic>=2",       # extraction schema + validation
+    "openai>=1.40",      # OpenAI-compatible client for the hosted NVIDIA endpoint
 ]
 
 [dependency-groups]

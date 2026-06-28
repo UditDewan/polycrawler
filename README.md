@@ -39,6 +39,9 @@ uv run python -m src.ingestion.run --source news_rss  # just one source
 #   football-data + news RSS need no auth. Reddit skips unless you copy
 #   .env.example -> .env and set REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET.
 
+# Phase 2 — signal extraction (hosted NVIDIA LLM; needs NVIDIA_API_KEY in .env):
+uv run python -m src.extraction.extract --limit 20    # small run; scale up after sign-off
+
 docker compose up -d qdrant          # vector store (not used until Phase 3)
 ```
 
@@ -66,4 +69,5 @@ tests/           # incl. the leakage suite
 
 - [x] **Phase 0** — scaffold + point-in-time schema/as-of utilities + leakage tests
 - [x] **Phase 1** — pluggable ingestion (football-data.co.uk, news RSS, Reddit) → DuckDB, idempotent
-- [ ] Phase 2 — signal extraction (hosted NVIDIA LLM, prompted; strict JSON, cached, no live calls in backtest)
+- [~] **Phase 2** — extraction groundwork done (LLM client, pre-filter, schema, signals table, tests); real run pending sign-off
+- [ ] Phase 3 — RAG retrieval (hosted embeddings + Qdrant, point-in-time)

@@ -12,7 +12,10 @@ from .timeutils import to_utc
 MATCH_COLS = ["match_id", "league", "season", "home", "away", "kickoff",
               "home_goals", "away_goals", "status", "result"]
 OBS_COLS = ["obs_id", "ts", "source", "kind", "match_id", "credibility", "payload"]
-_TS_COLS = {"kickoff", "ts"}
+SIGNALS_COLS = ["signal_id", "obs_id", "ts", "match_id", "is_relevant", "signal_type",
+                "team", "player", "sentiment", "confidence", "rationale",
+                "model", "model_params", "version", "extracted_at"]
+_TS_COLS = {"kickoff", "ts", "extracted_at"}
 
 DDL = """
 CREATE TABLE IF NOT EXISTS matches (
@@ -35,6 +38,23 @@ CREATE TABLE IF NOT EXISTS observations (
     match_id    VARCHAR,
     credibility DOUBLE,
     payload     VARCHAR
+);
+CREATE TABLE IF NOT EXISTS signals (
+    signal_id    VARCHAR PRIMARY KEY,    -- "{version}:{obs_id}"
+    obs_id       VARCHAR,
+    ts           TIMESTAMPTZ NOT NULL,   -- inherited from the source observation (point-in-time)
+    match_id     VARCHAR,
+    is_relevant  BOOLEAN,
+    signal_type  VARCHAR,                -- injury_news | rumor | lineup | transfer | suspension | banter | other
+    team         VARCHAR,
+    player       VARCHAR,
+    sentiment    VARCHAR,                -- positive | negative | neutral
+    confidence   DOUBLE,
+    rationale    VARCHAR,
+    model        VARCHAR,                -- hosted model id used (reproducibility)
+    model_params VARCHAR,
+    version      VARCHAR,                -- extraction schema/prompt version
+    extracted_at TIMESTAMPTZ
 );
 """
 
@@ -90,3 +110,7 @@ def upsert_matches(con, rows: list[dict]) -> int:
 
 def upsert_observations(con, rows: list[dict]) -> int:
     return _insert(con, "observations", OBS_COLS, rows, mode="ignore")
+
+
+def upsert_signals(con, rows: list[dict]) -> int:
+    return _insert(con, "signals", SIGNALS_COLS, rows, mode="ignore")
