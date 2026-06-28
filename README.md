@@ -69,5 +69,5 @@ tests/           # incl. the leakage suite
 
 - [x] **Phase 0** — scaffold + point-in-time schema/as-of utilities + leakage tests
 - [x] **Phase 1** — pluggable ingestion (football-data.co.uk, news RSS, Reddit) → DuckDB, idempotent
-- [~] **Phase 2** — extraction groundwork done (LLM client, pre-filter, schema, signals table, tests); real run pending sign-off
+- [x] **Phase 2** — signal extraction live (NVIDIA llama-3.3-70b → strict JSON; 47 signals, 100% valid, 68% pre-filter drop)
 - [ ] Phase 3 — RAG retrieval (hosted embeddings + Qdrant, point-in-time)

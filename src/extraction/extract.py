@@ -38,7 +38,7 @@ def system_prompt() -> str:
     return _SYSTEM.replace("{schema}", json.dumps(ExtractedSignal.model_json_schema()))
 
 
-def _eligible(con, kinds, version, limit):
+def _eligible(con, kinds, version):
     ph = ",".join("?" * len(kinds))
     sql = (
         f"SELECT o.obs_id, epoch_ms(o.ts) AS ts_ms, o.match_id, o.payload "  # epoch_ms avoids pytz
@@ -46,8 +46,6 @@ def _eligible(con, kinds, version, limit):
         f"AND NOT EXISTS (SELECT 1 FROM signals s WHERE s.obs_id = o.obs_id AND s.version = ?) "
         f"ORDER BY o.ts DESC"
     )
-    if limit:
-        sql += f" LIMIT {int(limit)}"
     cols = ["obs_id", "ts_ms", "match_id", "payload"]
     return [dict(zip(cols, r)) for r in con.execute(sql, list(kinds) + [version]).fetchall()]
 
@@ -56,8 +54,10 @@ def run(con, cfg, *, client=None, limit=None) -> dict:
     ex = cfg["extraction"]
     pf = ex["prefilter"]
     version = ex.get("signals_version", "v1")
-    rows = _eligible(con, pf.get("kinds", ["social", "news"]), version, limit)
+    rows = _eligible(con, pf.get("kinds", ["social", "news"]), version)
     kept, stats = prefilter.prefilter(rows, pf)
+    batch = kept[:limit] if limit else kept   # cap the number of API calls (quota)
+    stats["sent"] = len(batch)
 
     client = client or LLMClient.from_config(cfg)
     system = system_prompt()
@@ -67,7 +67,7 @@ def run(con, cfg, *, client=None, limit=None) -> dict:
 
     n_ok = n_invalid = 0
     stopped: str | bool = False
-    for o in kept:
+    for o in batch:
         try:
             sig = client.complete_json(system, o["_text"], schema=ExtractedSignal)
         except LLMUnavailable as e:

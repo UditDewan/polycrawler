@@ -102,6 +102,13 @@ class LLMClient:
 def _default_client(llm: dict):
     from openai import OpenAI  # lazy: only needed for real calls, not for tests
 
+    try:  # openai's httpx must also trust this network's TLS proxy
+        import truststore
+
+        truststore.inject_into_ssl()
+    except Exception:  # pragma: no cover
+        pass
+
     env = llm.get("api_key_env", "NVIDIA_API_KEY")
     api_key = os.environ.get(env)
     if not api_key:
