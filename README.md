@@ -1,7 +1,7 @@
 # Polycrawler
 
-A **calibrated** soccer-outcome forecaster combining RAG + a fine-tuned signal
-extractor + MLOps. Success = *when it says 70%, the event happens ~70% of the
+A **calibrated** soccer-outcome forecaster combining RAG + hosted-LLM signal
+extraction (prompted, no training) + MLOps. Success = *when it says 70%, the event happens ~70% of the
 time* (Brier score, log loss, reliability diagrams on a leak-free backtest).
 Beating the market is upside, never the premise. **Paper-trading only — no live
 execution, ever.**
@@ -31,7 +31,14 @@ architecturally: `TIMESTAMPTZ` columns, DuckDB `ASOF JOIN`, and an
 uv sync                              # create venv + install (duckdb, pyyaml, pytest)
 # behind a TLS-intercepting proxy? add --system-certs to uv commands
 uv run python -m src.common.asof     # as-of self-check (prints "asof demo OK ...")
-uv run pytest -q                     # full suite incl. the leakage tests
+uv run pytest -q                     # full suite incl. leakage + ingestion tests
+
+# Phase 1 — ingestion (idempotent; safe to re-run):
+uv run python -m src.ingestion.run                    # all enabled sources
+uv run python -m src.ingestion.run --source news_rss  # just one source
+#   football-data + news RSS need no auth. Reddit skips unless you copy
+#   .env.example -> .env and set REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET.
+
 docker compose up -d qdrant          # vector store (not used until Phase 3)
 ```
 
@@ -45,7 +52,7 @@ naive raw join is *caught*, not silently allowed.
 ```
 src/common/      # schema, time/as-of utilities, config  <- Phase 0 lives here
 src/ingestion/   # (A) collectors            Phase 1
-src/extraction/  # (B) fine-tuned extractor  Phase 2
+src/extraction/  # (B) hosted-LLM extractor  Phase 2
 src/retrieval/   # (C) RAG                    Phase 3
 src/prediction/  # (D) model + calibration   Phase 4
 eval/            # leak-free backtest         Phase 5  (centerpiece)
@@ -58,4 +65,5 @@ tests/           # incl. the leakage suite
 ## Status
 
 - [x] **Phase 0** — scaffold + point-in-time schema/as-of utilities + leakage tests
-- [ ] Phase 1 — ingestion
+- [x] **Phase 1** — pluggable ingestion (football-data.co.uk, news RSS, Reddit) → DuckDB, idempotent
+- [ ] Phase 2 — signal extraction (hosted NVIDIA LLM, prompted; strict JSON, cached, no live calls in backtest)

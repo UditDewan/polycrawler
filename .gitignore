@@ -12,3 +12,6 @@ __pycache__/
 
 # local env
 .env
+
+# graphify generated artifacts
+/graphify-out/

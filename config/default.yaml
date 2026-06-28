@@ -18,9 +18,12 @@ sources:
   reddit:
     enabled: true
     subreddits: [soccer]                 # OAuth app required; ~100 req/min, free non-commercial
+    limit: 100                           # newest N submissions per subreddit per run
   news_rss:
     enabled: true
-    feeds: []                            # filled in Phase 1
+    feeds:
+      - https://www.theguardian.com/football/rss
+      - https://feeds.bbci.co.uk/sport/football/rss.xml
   polymarket:
     enabled: true                        # live market-implied prob (read-only public API)
   football_data_couk:

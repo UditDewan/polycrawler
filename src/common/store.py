@@ -52,7 +52,12 @@ def create_tables(con: duckdb.DuckDBPyConnection) -> None:
         con.execute(stmt)
 
 
-def _insert(con, table: str, cols: list[str], rows: list[dict]) -> None:
+_VERBS = {"insert": "INSERT", "replace": "INSERT OR REPLACE", "ignore": "INSERT OR IGNORE"}
+
+
+def _insert(con, table: str, cols: list[str], rows: list[dict], *, mode: str = "insert") -> int:
+    if not rows:
+        return 0
     data = []
     for r in rows:
         row = []
@@ -63,7 +68,9 @@ def _insert(con, table: str, cols: list[str], rows: list[dict]) -> None:
             row.append(v)
         data.append(row)
     placeholders = ",".join("?" * len(cols))
-    con.executemany(f"INSERT INTO {table} ({','.join(cols)}) VALUES ({placeholders})", data)
+    con.executemany(
+        f"{_VERBS[mode]} INTO {table} ({','.join(cols)}) VALUES ({placeholders})", data)
+    return len(rows)
 
 
 def insert_matches(con, rows: list[dict]) -> None:
@@ -72,3 +79,14 @@ def insert_matches(con, rows: list[dict]) -> None:
 
 def insert_observations(con, rows: list[dict]) -> None:
     _insert(con, "observations", OBS_COLS, rows)
+
+
+# Idempotent variants for re-runnable ingestion (rely on the PRIMARY KEYs):
+# matches REPLACE so post-match results overwrite the scheduled row; observations
+# IGNORE because a captured fact is immutable once seen.
+def upsert_matches(con, rows: list[dict]) -> int:
+    return _insert(con, "matches", MATCH_COLS, rows, mode="replace")
+
+
+def upsert_observations(con, rows: list[dict]) -> int:
+    return _insert(con, "observations", OBS_COLS, rows, mode="ignore")
