@@ -45,6 +45,9 @@ uv run python -m src.extraction.extract --limit 20    # small run; scale up afte
 # Phase 3 — embed signals into Qdrant (local mode, no Docker); needs NVIDIA_API_KEY:
 uv run python -m src.retrieval.index                  # index relevant signals as vectors
 
+# Phase 4 — train + calibrate the outcome model (CPU, no API; reads EPL matches):
+uv run python -m src.prediction.train                 # prints the calibration report
+
 docker compose up -d qdrant          # optional Qdrant *server* (local mode used by default)
 ```
 
@@ -74,4 +77,5 @@ tests/           # incl. the leakage suite
 - [x] **Phase 1** — pluggable ingestion (football-data.co.uk, news RSS, Reddit) → DuckDB, idempotent
 - [x] **Phase 2** — signal extraction live (NVIDIA llama-3.3-70b → strict JSON; 47 signals, 100% valid, 68% pre-filter drop)
 - [x] **Phase 3** — RAG retrieval (NVIDIA nv-embedqa-e5-v5 + Qdrant local; point-in-time, recency/credibility re-rank, leakage-guarded)
-- [ ] Phase 4 — prediction + calibration (LightGBM + isotonic; market-implied edge)
+- [x] **Phase 4** — prediction + calibration: LightGBM + isotonic, out-of-time split; calibrated ECE 0.047 (raw 0.149), honestly below the market baseline
+- [ ] Phase 5 — leak-free backtest harness (Brier/log-loss/reliability over history; the centerpiece)
