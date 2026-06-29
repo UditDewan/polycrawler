@@ -1,0 +1,3 @@
+# Caches are reproducible; don't DVC-track them.
+data/llm_cache
+data/emb_cache

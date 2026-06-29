@@ -1,0 +1,32 @@
+# DVC pipeline: reproducible stages over the gitignored data/ tree.
+#   uv sync --group mlops && dvc repro      # rebuild everything that changed
+#   dvc dag                                  # show the stage graph
+# Outputs (the DuckDB store, extracted signals, vectors, model) are DVC-tracked,
+# not git-tracked — `dvc add data/polycrawler.duckdb` then commit the .dvc pointer.
+stages:
+  ingest:
+    cmd: python -m src.ingestion.run
+    deps: [src/ingestion, config/default.yaml]
+    outs: [data/polycrawler.duckdb]
+
+  extract:
+    cmd: python -m src.extraction.extract
+    deps: [src/extraction, src/common/llm_client.py, data/polycrawler.duckdb]
+
+  index:
+    cmd: python -m src.retrieval.index
+    deps: [src/retrieval, src/common/embeddings_client.py, data/polycrawler.duckdb]
+    outs: [data/qdrant_local]
+
+  train:
+    cmd: python -m src.prediction.train
+    deps: [src/prediction, data/polycrawler.duckdb]
+    outs: [data/models/phase4.pkl]
+
+  backtest:
+    cmd: python -m eval.backtest
+    deps: [eval/backtest.py, src/prediction, data/polycrawler.duckdb]
+
+  paper_trade:
+    cmd: python -m src.decision.paper_trade
+    deps: [src/decision, data/polycrawler.duckdb]

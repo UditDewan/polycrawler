@@ -21,6 +21,8 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest>=8,<9"]
+# Heavy, optional: install with `uv sync --group mlops`. Core + tests don't need these.
+mlops = ["mlflow>=2.14", "streamlit>=1.36"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

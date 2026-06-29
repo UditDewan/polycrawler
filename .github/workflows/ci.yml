@@ -1,0 +1,34 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request: {}
+
+jobs:
+  test-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "latest" }
+      - run: uv sync
+      # Full suite, incl. the leakage suite and the calibration-gate test that
+      # FAILS on a deliberately worse model.
+      - name: Tests (incl. leakage + eval gate)
+        run: uv run pytest -q
+      # The gate as a CI step: a precomputed candidate equal to the committed
+      # baseline must PASS. A calibration regression here turns the build red.
+      - name: Calibration eval gate
+        run: uv run python -m eval.gate --metrics-file eval/baseline_metrics.json
+
+  eval-gate-demo:
+    # Demonstrates the gate BLOCKING a deliberately worse model (expected to exit 1).
+    # continue-on-error so this demonstration doesn't fail the overall build.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { version: "latest" }
+      - run: uv sync
+      - name: Gate must block a worse model (exit 1 = working as intended)
+        run: uv run python -m eval.gate --simulate-regression

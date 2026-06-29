@@ -54,6 +54,13 @@ uv run python -m eval.backtest                        # Brier/log-loss/reliabili
 # Phase 6 — paper trading over the backtest (SIMULATED, no execution):
 uv run python -m src.decision.paper_trade             # fractional-Kelly ledger + P&L
 
+# Phase 7 — MLOps: calibration eval gate, tracking, drift, dashboard
+uv run python -m eval.gate                            # PASS/FAIL vs eval/baseline_metrics.json
+uv run python -m eval.gate --simulate-regression      # DEMO: worse model -> GATE FAIL, exit 1
+uv run python -m eval.gate --update-baseline          # accept current metrics as baseline
+uv sync --group mlops                                 # adds mlflow + streamlit (optional, heavy)
+uv run streamlit run dashboards/app.py                # live calibration + P&L dashboard
+
 docker compose up -d qdrant          # optional Qdrant *server* (local mode used by default)
 ```
 
@@ -86,4 +93,13 @@ tests/           # incl. the leakage suite
 - [x] **Phase 4** — prediction + calibration: LightGBM + isotonic, out-of-time split; calibrated ECE 0.047 (raw 0.149), honestly below the market baseline
 - [x] **Phase 5** — leak-free walk-forward backtest: 1,140 predictions, calibration stable over time (ECE ~0.04–0.05/season), honestly below market; no-lookahead + no-API tests
 - [x] **Phase 6** — paper trading (fractional-Kelly, simulated ledger): −10% ROI / near-total ruin on 1,093 bets — the model loses to the vig, exactly as a calibrated-but-not-market-beating forecaster should
-- [ ] Phase 7 — MLOps wrap (MLflow, DVC, Evidently drift, dashboard, CI eval gate)
+- [x] **Phase 7** — MLOps wrap: calibration eval gate (PASS on baseline / FAIL+exit-1 on a worse model) + GitHub Actions CI, MLflow tracking+registry, PSI feature drift, hosted-API quota monitor, Streamlit dashboard, DVC pipeline
+
+**All 7 phases complete.** 41 tests pass (incl. the leakage suite + the gate's
+block-a-worse-model test). The result is honest: the forecaster is *calibrated*
+(ECE ~0.04, stable across seasons) and sits *below* an efficient market — proving
+calibration, not beating the line, exactly as the brief framed success.
+
+### What's real vs. toy
+- **Real:** leak-free point-in-time architecture + dedicated leakage tests; live NVIDIA extraction & embeddings; walk-forward backtest; isotonic calibration; CI eval gate.
+- **Honest limits:** RAG signals are live-World-Cup only (no contemporaneous text for historical EPL, so they're zero on the backtest); drift/quota are lightweight (PSI, cache-count) with Evidently notable as a swap-in; single league.

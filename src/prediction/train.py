@@ -59,6 +59,10 @@ def main() -> None:
     con = store.connect(cfg["storage"]["duckdb_path"])
     store.create_tables(con)
     r = run(con)
+    # MLflow tracking (graceful no-op -> JSON fallback if the mlops group isn't installed)
+    from ..mlops.tracking import log_training_run
+    from .model import LGBM_PARAMS
+    log_training_run(r, params=LGBM_PARAMS, model_path="data/models/phase4.pkl")
     print(f"Test season {r['test_season']}  |  n_test={r['n_test']}  "
           f"(fit={r['n_fit']}, calib={r['n_calib']})")
     print(f"\n{'model':18}{'Brier':>9}{'LogLoss':>9}{'ECE':>8}   (lower = better)")
