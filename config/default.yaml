@@ -35,7 +35,29 @@ storage:
 
 vector_store:
   provider: qdrant
-  url: http://localhost:6333
+  url: http://localhost:6333          # Docker server (optional)
+  path: data/qdrant_local             # local in-process mode (no Docker; used by default)
+
+# Hosted embeddings (Phase 3). nv-embedqa-e5-v5 = 1024-dim, English, needs input_type.
+embeddings:
+  provider: nvidia
+  base_url: https://integrate.api.nvidia.com/v1
+  api_key_env: NVIDIA_API_KEY
+  model: nvidia/nv-embedqa-e5-v5
+  dim: 1024
+  truncate: END
+  batch_size: 64
+  cache_dir: data/emb_cache
+
+retrieval:
+  top_k: 8
+  candidate_k: 50
+  recency_halflife_days: 3
+  credibility:        # source-substring -> weight, for the recency x credibility re-rank
+    default: 0.5
+    bbc: 0.9
+    theguardian: 0.85
+    reddit: 0.4
 
 # Hosted LLM (Phase 2+). Provider-agnostic, OpenAI-compatible. Confirm ids vs docs.
 llm:

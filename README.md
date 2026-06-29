@@ -42,7 +42,10 @@ uv run python -m src.ingestion.run --source news_rss  # just one source
 # Phase 2 — signal extraction (hosted NVIDIA LLM; needs NVIDIA_API_KEY in .env):
 uv run python -m src.extraction.extract --limit 20    # small run; scale up after sign-off
 
-docker compose up -d qdrant          # vector store (not used until Phase 3)
+# Phase 3 — embed signals into Qdrant (local mode, no Docker); needs NVIDIA_API_KEY:
+uv run python -m src.retrieval.index                  # index relevant signals as vectors
+
+docker compose up -d qdrant          # optional Qdrant *server* (local mode used by default)
 ```
 
 **What to look for:** the demo prints `asof demo OK ...`; `pytest` is green. The
@@ -70,4 +73,5 @@ tests/           # incl. the leakage suite
 - [x] **Phase 0** — scaffold + point-in-time schema/as-of utilities + leakage tests
 - [x] **Phase 1** — pluggable ingestion (football-data.co.uk, news RSS, Reddit) → DuckDB, idempotent
 - [x] **Phase 2** — signal extraction live (NVIDIA llama-3.3-70b → strict JSON; 47 signals, 100% valid, 68% pre-filter drop)
-- [ ] Phase 3 — RAG retrieval (hosted embeddings + Qdrant, point-in-time)
+- [x] **Phase 3** — RAG retrieval (NVIDIA nv-embedqa-e5-v5 + Qdrant local; point-in-time, recency/credibility re-rank, leakage-guarded)
+- [ ] Phase 4 — prediction + calibration (LightGBM + isotonic; market-implied edge)
