@@ -51,6 +51,9 @@ uv run python -m src.prediction.train                 # prints the calibration r
 # Phase 5 — leak-free walk-forward backtest (no API; persists predictions):
 uv run python -m eval.backtest                        # Brier/log-loss/reliability over history
 
+# Phase 6 — paper trading over the backtest (SIMULATED, no execution):
+uv run python -m src.decision.paper_trade             # fractional-Kelly ledger + P&L
+
 docker compose up -d qdrant          # optional Qdrant *server* (local mode used by default)
 ```
 
@@ -82,4 +85,5 @@ tests/           # incl. the leakage suite
 - [x] **Phase 3** — RAG retrieval (NVIDIA nv-embedqa-e5-v5 + Qdrant local; point-in-time, recency/credibility re-rank, leakage-guarded)
 - [x] **Phase 4** — prediction + calibration: LightGBM + isotonic, out-of-time split; calibrated ECE 0.047 (raw 0.149), honestly below the market baseline
 - [x] **Phase 5** — leak-free walk-forward backtest: 1,140 predictions, calibration stable over time (ECE ~0.04–0.05/season), honestly below market; no-lookahead + no-API tests
-- [ ] Phase 6 — paper trading (fractional-Kelly sizing, simulated ledger, settle on resolution)
+- [x] **Phase 6** — paper trading (fractional-Kelly, simulated ledger): −10% ROI / near-total ruin on 1,093 bets — the model loses to the vig, exactly as a calibrated-but-not-market-beating forecaster should
+- [ ] Phase 7 — MLOps wrap (MLflow, DVC, Evidently drift, dashboard, CI eval gate)
