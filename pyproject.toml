@@ -25,3 +25,4 @@ dev = ["pytest>=8,<9"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+filterwarnings = ["ignore:X does not have valid feature names"]  # cosmetic LGBM+numpy warning

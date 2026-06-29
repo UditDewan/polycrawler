@@ -48,6 +48,9 @@ uv run python -m src.retrieval.index                  # index relevant signals a
 # Phase 4 — train + calibrate the outcome model (CPU, no API; reads EPL matches):
 uv run python -m src.prediction.train                 # prints the calibration report
 
+# Phase 5 — leak-free walk-forward backtest (no API; persists predictions):
+uv run python -m eval.backtest                        # Brier/log-loss/reliability over history
+
 docker compose up -d qdrant          # optional Qdrant *server* (local mode used by default)
 ```
 
@@ -78,4 +81,5 @@ tests/           # incl. the leakage suite
 - [x] **Phase 2** — signal extraction live (NVIDIA llama-3.3-70b → strict JSON; 47 signals, 100% valid, 68% pre-filter drop)
 - [x] **Phase 3** — RAG retrieval (NVIDIA nv-embedqa-e5-v5 + Qdrant local; point-in-time, recency/credibility re-rank, leakage-guarded)
 - [x] **Phase 4** — prediction + calibration: LightGBM + isotonic, out-of-time split; calibrated ECE 0.047 (raw 0.149), honestly below the market baseline
-- [ ] Phase 5 — leak-free backtest harness (Brier/log-loss/reliability over history; the centerpiece)
+- [x] **Phase 5** — leak-free walk-forward backtest: 1,140 predictions, calibration stable over time (ECE ~0.04–0.05/season), honestly below market; no-lookahead + no-API tests
+- [ ] Phase 6 — paper trading (fractional-Kelly sizing, simulated ledger, settle on resolution)
