@@ -10,59 +10,18 @@ suspect leakage.
 """
 from __future__ import annotations
 
-import json
 import pickle
-import warnings
-from datetime import datetime, timezone
 from pathlib import Path
-
-import numpy as np
-from lightgbm import LGBMClassifier
 
 from ..common import store
 from ..common.config import load_config
-from .calibration import (
-    OvRIsotonic,
-    brier_multiclass,
-    ece,
-    multiclass_log_loss,
-    reliability_table,
-)
-from .features import FEATURE_COLS, build_features
-
-# LGBM + numpy interplay emits a cosmetic sklearn feature-name warning; silence it.
-warnings.filterwarnings("ignore", message="X does not have valid feature names")
-
-
-def load_matches(con) -> list[dict]:
-    sql = """
-        SELECT m.match_id, epoch_ms(m.kickoff) AS km, m.season, m.home, m.away, m.result,
-               m.home_goals, m.away_goals, o.payload
-        FROM matches m
-        LEFT JOIN observations o ON o.match_id = m.match_id AND o.kind = 'odds'
-    """
-    out = []
-    for mid, km, season, home, away, result, hg, ag, payload in con.execute(sql).fetchall():
-        odds = json.loads(payload) if payload else {}
-        out.append(dict(
-            match_id=mid, kickoff=datetime.fromtimestamp(km / 1000, tz=timezone.utc),
-            season=season, home=home, away=away, result=result, home_goals=hg, away_goals=ag,
-            b365h=odds.get("B365H"), b365d=odds.get("B365D"), b365a=odds.get("B365A"),
-        ))
-    return out
-
-
-def _matrix(rows):
-    return np.array([[r[c] for c in FEATURE_COLS] for r in rows], dtype=float)
-
-
-def _y(rows):
-    return np.array([r["target"] for r in rows], dtype=int)
+from .calibration import brier_multiclass, ece, multiclass_log_loss, reliability_table
+from .features import FEATURE_COLS
+from .model import feature_rows, fit_calibrated, market_matrix, matrix, targets
 
 
 def run(con, *, seed: int = 42, save_to: str | None = "data/models/phase4.pkl") -> dict:
-    rows = [r for r in build_features(load_matches(con))
-            if r["target"] is not None and not np.isnan(r["market_p_home"])]
+    rows = feature_rows(con)
     seasons = sorted({r["season"] for r in rows})
     if len(seasons) < 2:
         raise SystemExit("need >=2 seasons of played matches with odds")
@@ -72,15 +31,11 @@ def run(con, *, seed: int = 42, save_to: str | None = "data/models/phase4.pkl") 
     cut = int(len(train) * 0.8)
     fit, calib = train[:cut], train[cut:]  # chronological calibration holdout
 
-    clf = LGBMClassifier(objective="multiclass", num_class=3, n_estimators=300,
-                         learning_rate=0.03, num_leaves=31, random_state=seed, verbose=-1)
-    clf.fit(_matrix(fit), _y(fit))
-    cal = OvRIsotonic().fit(clf.predict_proba(_matrix(calib)), _y(calib))
-
-    yt = _y(test)
-    P_raw = clf.predict_proba(_matrix(test))
+    clf, cal = fit_calibrated(fit, calib, seed=seed)
+    yt = targets(test)
+    P_raw = clf.predict_proba(matrix(test))
     P_cal = cal.transform(P_raw)
-    P_mkt = np.array([[r["market_p_home"], r["market_p_draw"], r["market_p_away"]] for r in test])
+    P_mkt = market_matrix(test)
 
     def scores(P):
         return {"brier": brier_multiclass(P, yt), "log_loss": multiclass_log_loss(P, yt),
@@ -89,7 +44,7 @@ def run(con, *, seed: int = 42, save_to: str | None = "data/models/phase4.pkl") 
     report = {
         "test_season": test_season, "n_fit": len(fit), "n_calib": len(calib), "n_test": len(test),
         "model_raw": scores(P_raw), "model_calibrated": scores(P_cal), "market": scores(P_mkt),
-        "mean_abs_edge_vs_market": float(np.abs(P_cal - P_mkt).mean()),
+        "mean_abs_edge_vs_market": float((P_cal - P_mkt).__abs__().mean()),
         "reliability_calibrated": reliability_table(P_cal, yt),
     }
     if save_to:
