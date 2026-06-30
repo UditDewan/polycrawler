@@ -21,14 +21,19 @@ jobs:
         run: uv run python -m eval.gate --metrics-file eval/baseline_metrics.json
 
   eval-gate-demo:
-    # Demonstrates the gate BLOCKING a deliberately worse model (expected to exit 1).
-    # continue-on-error so this demonstration doesn't fail the overall build.
+    # Asserts the gate BLOCKS a deliberately worse model. The gate exits 1 when it
+    # correctly blocks, so we invert it: this job is GREEN when the gate works, and
+    # RED only if a calibration regression slips through.
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
         with: { version: "latest" }
       - run: uv sync
-      - name: Gate must block a worse model (exit 1 = working as intended)
-        run: uv run python -m eval.gate --simulate-regression
+      - name: Gate must block a worse model
+        run: |
+          if uv run python -m eval.gate --simulate-regression; then
+            echo "::error::eval gate did NOT block a deliberately worse model"
+            exit 1
+          fi
+          echo "eval gate correctly blocked the regression (exit 1) — OK"
