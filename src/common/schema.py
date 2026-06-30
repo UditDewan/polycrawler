@@ -14,7 +14,7 @@ These dataclasses are the logical contract; physical DuckDB tables live in store
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 

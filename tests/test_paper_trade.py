@@ -25,7 +25,7 @@ def test_simulate_settles_and_compounds():
         _p("3", 2, 2, [0.6, 0.2, 0.2], [2.0, 4.0, 4.0]),   # home +EV but AWAY wins -> loss
     ]
     ledger = simulate(preds, bankroll=100.0, kelly_frac=0.25, min_edge=0.02)
-    assert [l["match_id"] for l in ledger] == ["1", "3"]    # match 2 skipped
+    assert [bet["match_id"] for bet in ledger] == ["1", "3"]    # match 2 skipped
 
     # match1: f=0.25*0.2=0.05, stake=5, win -> +5 -> bankroll 105
     assert abs(ledger[0]["stake"] - 5.0) < 1e-9

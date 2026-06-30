@@ -47,3 +47,13 @@ def test_calibration_outputs_simplex_and_brier_zero_is_perfect():
     assert brier_multiclass(perfect, y) == 0.0
     assert multiclass_log_loss(perfect, y) < 1e-9
     assert 0.0 <= ece(P, y) <= 1.0
+
+
+def test_calibration_never_returns_a_zero_sum_row():
+    # Regression: a low-confidence row used to map every class to 0 (sum 0, not a
+    # distribution). Calibrated rows must always sum to 1.
+    P = np.array([[0.1, 0.1, 0.8], [0.1, 0.8, 0.1], [0.8, 0.1, 0.1], [0.34, 0.33, 0.33]])
+    y = np.array([2, 1, 0, 2])
+    cal = OvRIsotonic().fit(P, y)
+    Q = cal.transform(np.array([[0.05, 0.05, 0.05]]))   # clips below every class's min
+    assert abs(Q.sum() - 1.0) < 1e-9                    # was 0.0 before the fix

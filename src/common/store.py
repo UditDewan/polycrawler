@@ -88,9 +88,13 @@ def _insert(con, table: str, cols: list[str], rows: list[dict], *, mode: str = "
             row.append(v)
         data.append(row)
     placeholders = ",".join("?" * len(cols))
+    before = con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
     con.executemany(
         f"{_VERBS[mode]} INTO {table} ({','.join(cols)}) VALUES ({placeholders})", data)
-    return len(rows)
+    # Net-new rows actually inserted — not len(rows). With INSERT OR IGNORE a
+    # re-seen key adds nothing, so this returns 0 on idempotent re-runs instead of
+    # over-reporting the attempted count (the Phase 1 "148 vs 147 stored" miscount).
+    return con.execute(f"SELECT count(*) FROM {table}").fetchone()[0] - before
 
 
 def insert_matches(con, rows: list[dict]) -> None:

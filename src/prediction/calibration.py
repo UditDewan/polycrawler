@@ -29,7 +29,13 @@ class OvRIsotonic:
     def transform(self, P: np.ndarray) -> np.ndarray:
         Q = np.column_stack([self.iso[k].transform(P[:, k]) for k in range(P.shape[1])])
         s = Q.sum(axis=1, keepdims=True)
-        s[s == 0] = 1.0
+        # A low-confidence row can have every class's isotonic map to 0 -> the row
+        # sums to 0, which is NOT a probability distribution and would silently
+        # corrupt Brier/log-loss/ECE. Fall back to the raw (already-normalized) probs.
+        degenerate = (s[:, 0] == 0)
+        if degenerate.any():
+            Q[degenerate] = P[degenerate]
+            s = Q.sum(axis=1, keepdims=True)
         return Q / s
 
 

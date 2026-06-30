@@ -1,7 +1,5 @@
 """Phase 7: the eval gate (both directions), PSI drift, quota, dashboard data.
 The gate test IS the 'CI fails on a deliberately worse model' deliverable."""
-import json
-
 import numpy as np
 
 from eval.gate import check_calibration
