@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
+
+from . import http
 
 
 class EmbeddingsUnavailable(RuntimeError):
@@ -78,16 +79,7 @@ class EmbeddingsClient:
 
 
 def _default_client(emb: dict):
-    from openai import OpenAI  # lazy
-
     try:
-        import truststore
-
-        truststore.inject_into_ssl()
-    except Exception:  # pragma: no cover
-        pass
-    env = emb.get("api_key_env", "NVIDIA_API_KEY")
-    api_key = os.environ.get(env)
-    if not api_key:
-        raise EmbeddingsUnavailable(f"{env} not set")
-    return OpenAI(base_url=emb["base_url"], api_key=api_key)
+        return http.openai_client(emb["base_url"], emb.get("api_key_env", "NVIDIA_API_KEY"))
+    except ValueError as e:
+        raise EmbeddingsUnavailable(str(e))

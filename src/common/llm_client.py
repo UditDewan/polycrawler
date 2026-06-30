@@ -12,12 +12,13 @@ Provider + model come from config. Inject `client=` (anything exposing
 from __future__ import annotations
 
 import hashlib
-import os
 import time
 from pathlib import Path
 from typing import TypeVar
 
 from pydantic import BaseModel, ValidationError
+
+from . import http
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -100,17 +101,7 @@ class LLMClient:
 
 
 def _default_client(llm: dict):
-    from openai import OpenAI  # lazy: only needed for real calls, not for tests
-
-    try:  # openai's httpx must also trust this network's TLS proxy
-        import truststore
-
-        truststore.inject_into_ssl()
-    except Exception:  # pragma: no cover
-        pass
-
-    env = llm.get("api_key_env", "NVIDIA_API_KEY")
-    api_key = os.environ.get(env)
-    if not api_key:
-        raise LLMUnavailable(f"{env} not set")
-    return OpenAI(base_url=llm["base_url"], api_key=api_key)
+    try:
+        return http.openai_client(llm["base_url"], llm.get("api_key_env", "NVIDIA_API_KEY"))
+    except ValueError as e:
+        raise LLMUnavailable(str(e))
