@@ -83,15 +83,15 @@ def report(ledger, *, bankroll0=100.0) -> dict:
     n = len(ledger)
     if n == 0:
         return {"bets": 0, "final_bankroll": bankroll0}
-    staked = sum(l["stake"] for l in ledger)
-    pnl = sum(l["pnl"] for l in ledger)
-    wins = sum(l["won"] for l in ledger)
+    staked = sum(bet["stake"] for bet in ledger)
+    pnl = sum(bet["pnl"] for bet in ledger)
+    wins = sum(bet["won"] for bet in ledger)
     return {
         "bets": n, "staked": staked, "pnl": pnl,
         "roi": pnl / staked if staked else 0.0,
         "final_bankroll": ledger[-1]["bankroll"], "hit_rate": wins / n,
-        "avg_model_prob_on_bets": sum(l["p_model"] for l in ledger) / n,  # vs hit_rate = calib check
-        "avg_edge": sum(l["edge"] for l in ledger) / n,
+        "avg_model_prob_on_bets": sum(bet["p_model"] for bet in ledger) / n,  # vs hit_rate = calib check
+        "avg_edge": sum(bet["edge"] for bet in ledger) / n,
     }
 
 
@@ -109,8 +109,8 @@ def persist(con, ledger) -> None:
     if ledger:
         con.executemany(
             "INSERT INTO paper_trades VALUES (?,?,?,?,?,?,?,?,?,?)",
-            [(l["match_id"], l["kickoff"], l["outcome"], l["odds"], l["p_model"], l["edge"],
-              l["stake"], l["won"], l["pnl"], l["bankroll"]) for l in ledger],
+            [(b["match_id"], b["kickoff"], b["outcome"], b["odds"], b["p_model"], b["edge"],
+              b["stake"], b["won"], b["pnl"], b["bankroll"]) for b in ledger],
         )
 
 

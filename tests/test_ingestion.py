@@ -63,6 +63,18 @@ def test_parse_feed_timestamps_and_idempotency():
     assert con.sql("SELECT count(*) FROM observations").fetchone()[0] == 2
 
 
+def test_upsert_returns_net_new_rows_not_attempted():
+    # Regression: upsert used to return the attempted count (the "148 vs 147 stored"
+    # miscount). It must report rows actually inserted.
+    from src.common import store
+    con = connect()
+    create_tables(con)
+    o = dict(obs_id="dup", ts="2026-01-01T00:00:00Z", source="s", kind="news", payload="{}")
+    assert store.upsert_observations(con, [o, o]) == 1   # duplicate within the batch
+    assert store.upsert_observations(con, [o]) == 0       # already present -> nothing new
+    assert con.sql("SELECT count(*) FROM observations").fetchone()[0] == 1
+
+
 def test_reddit_submission_mapping():
     sub = SimpleNamespace(
         id="abc123", created_utc=1_700_000_000, title="Team X lineup leaked",

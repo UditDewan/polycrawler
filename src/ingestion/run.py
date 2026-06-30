@@ -39,7 +39,8 @@ def main() -> None:
     for name in chosen:
         fn = COLLECTORS.get(name)
         if fn is None:
-            print(f"  {name}: unknown source"); continue
+            print(f"  {name}: unknown source")
+            continue
         try:
             print(f"  {name}: {fn(con, cfg)}")
         except Exception as e:  # noqa: BLE001 - one bad source must not abort the rest
