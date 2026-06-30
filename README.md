@@ -97,8 +97,7 @@ tests/           # incl. the leakage suite
 
 **All 7 phases complete.** 41 tests pass (incl. the leakage suite + the gate's
 block-a-worse-model test). The result is honest: the forecaster is *calibrated*
-(ECE ~0.04, stable across seasons) and sits *below* an efficient market — proving
-calibration, not beating the line, exactly as the brief framed success.
+(ECE ~0.04, stable across seasons) and sits *below* an efficient market which  proves calibration, not beating the line, exactly as the brief framed success.
 
 ### What's real vs. toy
 - **Real:** leak-free point-in-time architecture + dedicated leakage tests; live NVIDIA extraction & embeddings; walk-forward backtest; isotonic calibration; CI eval gate.
