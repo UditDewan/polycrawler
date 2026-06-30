@@ -13,7 +13,7 @@ execution, ever.**
 | Sport | Soccer | — |
 | **History** (fit + leak-free backtest) | Club football, default EPL via **football-data.co.uk** | Many resolved games + historical closing odds → calibration is *provable* |
 | **Live** (forward paper-trade) | **2026 World Cup**, prices from **Polymarket** | Fresh, liquid, exciting; inherently leak-free (match hasn't happened) |
-| Storage / vectors | **DuckDB** + **Qdrant** | DuckDB's `ASOF JOIN` makes point-in-time correctness native |
+| Storage / vectors | **DuckDB** + **Qdrant** | DuckDB/Parquet for point-in-time `ts < kickoff` queries; Qdrant (local mode) for retrieval |
 
 > The World Cup alone can't prove calibration (~104 live matches, no historical
 > replay). So we *fit and backtest on history* and *forward-test on the World Cup*
@@ -22,16 +22,28 @@ execution, ever.**
 ## The one invariant
 
 Every feature for a match may use only observations with `ts < kickoff`. Enforced
-architecturally: `TIMESTAMPTZ` columns, DuckDB `ASOF JOIN`, and an
-`assert_no_leakage()` guard with a dedicated test suite (`tests/test_asof.py`).
+at each layer that builds features, with a leakage test per layer:
+- **Form features** fold a match's result into history only *after* its own row is
+  built (`src/prediction/features.py` → `tests/test_prediction.py`).
+- **Retrieval** filters the vector store on `ts_ms < kickoff` and re-asserts it on
+  the result bundle (`src/retrieval/retrieve.py` → `tests/test_retrieval.py`).
+- **Backtest** trains only on matches strictly before each prediction block
+  (`eval/backtest.py` → `tests/test_backtest.py`, which also asserts no live API call).
+
+## Setup
+
+```bash
+uv sync                              # venv + core deps (duckdb, pyyaml, pytest, ...)
+cp .env.example .env                 # then add your NVIDIA_API_KEY (free: build.nvidia.com)
+# behind a TLS-intercepting proxy? add --system-certs to uv commands
+```
+`.env` is gitignored — keys never get committed. Phases 1, 4, 5, 6 run without any
+key; Phases 2–3 need `NVIDIA_API_KEY` (hosted LLM + embeddings).
 
 ## Run it
 
 ```bash
-uv sync                              # create venv + install (duckdb, pyyaml, pytest)
-# behind a TLS-intercepting proxy? add --system-certs to uv commands
-uv run python -m src.common.asof     # as-of self-check (prints "asof demo OK ...")
-uv run pytest -q                     # full suite incl. leakage + ingestion tests
+uv run pytest -q                     # full suite incl. the per-layer leakage tests
 
 # Phase 1 — ingestion (idempotent; safe to re-run):
 uv run python -m src.ingestion.run                    # all enabled sources
@@ -64,29 +76,28 @@ uv run streamlit run dashboards/app.py                # live calibration + P&L d
 docker compose up -d qdrant          # optional Qdrant *server* (local mode used by default)
 ```
 
-**What to look for:** the demo prints `asof demo OK ...`; `pytest` is green. The
-leakage tests prove that an observation exactly at or after kickoff — including a
-timezone trap (`14:00 -05:00` = `19:00Z`) — is excluded from features and that a
-naive raw join is *caught*, not silently allowed.
+**What to look for:** `pytest` is green, including the three per-layer leakage
+tests above (an observation exactly at or after kickoff is excluded from features;
+the backtest never trains on a same-or-future match and makes no live API call).
 
 ## Layout
 
 ```
-src/common/      # schema, time/as-of utilities, config  <- Phase 0 lives here
+src/common/      # UTC time, DuckDB store, config, network clients
 src/ingestion/   # (A) collectors            Phase 1
 src/extraction/  # (B) hosted-LLM extractor  Phase 2
 src/retrieval/   # (C) RAG                    Phase 3
 src/prediction/  # (D) model + calibration   Phase 4
-eval/            # leak-free backtest         Phase 5  (centerpiece)
+eval/            # leak-free backtest + gate  Phase 5/7  (centerpiece)
 src/decision/    # (E) paper trading          Phase 6
-src/mlops/       # (F) tracking/drift/CI gate Phase 7
+src/mlops/       # (F) tracking/drift/dashboard Phase 7
 config/default.yaml
-tests/           # incl. the leakage suite
+tests/           # per-layer leakage + unit tests
 ```
 
 ## Status
 
-- [x] **Phase 0** — scaffold + point-in-time schema/as-of utilities + leakage tests
+- [x] **Phase 0** — scaffold + point-in-time schema/config + per-layer leakage tests
 - [x] **Phase 1** — pluggable ingestion (football-data.co.uk, news RSS, Reddit) → DuckDB, idempotent
 - [x] **Phase 2** — signal extraction live (NVIDIA llama-3.3-70b → strict JSON; 47 signals, 100% valid, 68% pre-filter drop)
 - [x] **Phase 3** — RAG retrieval (NVIDIA nv-embedqa-e5-v5 + Qdrant local; point-in-time, recency/credibility re-rank, leakage-guarded)
@@ -95,10 +106,11 @@ tests/           # incl. the leakage suite
 - [x] **Phase 6** — paper trading (fractional-Kelly, simulated ledger): −10% ROI / near-total ruin on 1,093 bets — the model loses to the vig, exactly as a calibrated-but-not-market-beating forecaster should
 - [x] **Phase 7** — MLOps wrap: calibration eval gate (PASS on baseline / FAIL+exit-1 on a worse model) + GitHub Actions CI, MLflow tracking+registry, PSI feature drift, hosted-API quota monitor, Streamlit dashboard, DVC pipeline
 
-**All 7 phases complete.** 41 tests pass (incl. the leakage suite + the gate's
-block-a-worse-model test). The result is honest: the forecaster is *calibrated*
-(ECE ~0.04, stable across seasons) and sits *below* an efficient market which  proves calibration, not beating the line, exactly as the brief framed success.
+**All 7 phases complete.** 38 tests pass (incl. the per-layer leakage tests + the
+gate's block-a-worse-model test). The result is honest: the forecaster is
+*calibrated* (ECE ~0.04, stable across seasons) and sits *below* an efficient
+market which proves calibration, not beating the line, exactly as the brief framed success.
 
 ### What's real vs. toy
-- **Real:** leak-free point-in-time architecture + dedicated leakage tests; live NVIDIA extraction & embeddings; walk-forward backtest; isotonic calibration; CI eval gate.
+- **Real:** leak-free point-in-time architecture + per-layer leakage tests; live NVIDIA extraction & embeddings; walk-forward backtest; isotonic calibration; CI eval gate.
 - **Honest limits:** RAG signals are live-World-Cup only (no contemporaneous text for historical EPL, so they're zero on the backtest); drift/quota are lightweight (PSI, cache-count) with Evidently notable as a swap-in; single league.

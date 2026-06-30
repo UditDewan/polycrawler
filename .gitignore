@@ -10,8 +10,15 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# local env
+# secrets — never commit these (this repo is public)
 .env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.*
+*credentials*
+*.secret
 
 # graphify generated artifacts
 /graphify-out/

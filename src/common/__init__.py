@@ -1,1 +1,1 @@
-"""Shared schema, time/as-of utilities, and config loader. Everything depends on this."""
+"""Shared utilities: UTC time handling, DuckDB store, config loader, network clients."""
