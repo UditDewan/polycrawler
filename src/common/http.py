@@ -1,7 +1,8 @@
-"""One polite HTTP getter for all collectors: OS-trust certs, a descriptive
-User-Agent, and retry-with-backoff. Nothing fancy — collectors call get()."""
+"""Shared networking: a polite HTTP getter for collectors and an OpenAI-compatible
+client factory — both over the OS cert store so TLS-intercepting proxies validate."""
 from __future__ import annotations
 
+import os
 import time
 
 import httpx
@@ -14,6 +15,17 @@ except Exception:  # pragma: no cover - truststore optional at runtime
     pass
 
 USER_AGENT = "polycrawler/0.1 (research; +https://github.com/)"
+
+
+def openai_client(base_url: str, api_key_env: str = "NVIDIA_API_KEY"):
+    """OpenAI-compatible client for the hosted endpoint. Raises ValueError if the key
+    env var is unset (callers wrap it in their own LLM/Embeddings 'unavailable' error)."""
+    from openai import OpenAI  # lazy: only needed for real calls, not for tests
+
+    api_key = os.environ.get(api_key_env)
+    if not api_key:
+        raise ValueError(f"{api_key_env} not set")
+    return OpenAI(base_url=base_url, api_key=api_key)
 
 
 def get(url: str, *, retries: int = 3, timeout: float = 30.0, headers: dict | None = None) -> httpx.Response:
