@@ -1,23 +1,50 @@
 # Polycrawler
 
-A **calibrated** soccer-outcome forecaster combining RAG + hosted-LLM signal
-extraction (prompted, no training) + MLOps. Success = *when it says 70%, the event happens ~70% of the
-time* (Brier score, log loss, reliability diagrams on a leak-free backtest).
-Beating the market is upside, never the premise. **Paper-trading only — no live
-execution, ever.**
+**Scrapes soccer news, social, and match data from public sources into a
+timestamped DuckDB store, and summarizes the latest of it into a concise, themed
+digest** using a hosted LLM (NVIDIA Llama-3.3-70B).
 
-## Scope (locked in Phase 0)
+## Quickstart
 
-| | Choice | Why |
+```bash
+uv sync
+cp .env.example .env                        # add NVIDIA_API_KEY (free: build.nvidia.com)
+uv run python -m src.summarize --scrape     # scrape fresh news + print a digest
+```
+
+`--scrape` pulls fresh headlines first; drop it to digest what's already stored.
+`--out digest.md` writes to a file; `--limit N` sets how many recent items to include.
+
+**Sources** (pluggable — any can be disabled in `config/default.yaml`):
+
+| Source | Auth | Provides |
 |---|---|---|
-| Sport | Soccer | — |
-| **History** (fit + leak-free backtest) | Club football, default EPL via **football-data.co.uk** | Many resolved games + historical closing odds → calibration is *provable* |
-| **Live** (forward paper-trade) | **2026 World Cup**, prices from **Polymarket** | Fresh, liquid, exciting; inherently leak-free (match hasn't happened) |
-| Storage / vectors | **DuckDB** + **Qdrant** | DuckDB/Parquet for point-in-time `ts < kickoff` queries; Qdrant (local mode) for retrieval |
+| Guardian + BBC football RSS | none | news headlines |
+| football-data.co.uk | none | match results + closing odds |
+| Reddit r/soccer (PRAW) | optional | social posts |
 
-> The World Cup alone can't prove calibration (~104 live matches, no historical
-> replay). So we *fit and backtest on history* and *forward-test on the World Cup*
-> with the same pipeline.
+Scraping needs no key; only the summary step calls the LLM (`NVIDIA_API_KEY`). Data
+sources are read-only via their official feeds/APIs, throttled politely.
+
+---
+
+<details>
+<summary><b>Forecasting layer (research extension — optional)</b></summary>
+
+The same scraped store also feeds a calibration-first match-outcome forecaster
+(RAG + LightGBM/isotonic + a leak-free walk-forward backtest + MLOps). Its honest
+result: forecasts are *well-calibrated* but sit *below* the efficient market — it
+does not beat the closing line, and the paper-trading layer is **simulation only,
+never live**. Details in the sections below.
+</details>
+
+---
+
+# Forecasting layer (research extension)
+
+> Everything below is the optional match-outcome forecaster built on the same
+> scraped store. It is a research exercise in calibration + MLOps, not the primary
+> tool. Skip it if you only care about scrape-and-summarize.
 
 ## The one invariant
 
@@ -44,6 +71,10 @@ key; Phases 2–3 need `NVIDIA_API_KEY` (hosted LLM + embeddings).
 
 ```bash
 uv run pytest -q                     # full suite incl. the per-layer leakage tests
+
+# --- Primary use: scrape + summarize ---
+uv run python -m src.summarize --scrape               # scrape fresh news, print a digest
+uv run python -m src.summarize --limit 40 --out digest.md   # digest stored news to a file
 
 # Phase 1 — ingestion (idempotent; safe to re-run):
 uv run python -m src.ingestion.run                    # all enabled sources
