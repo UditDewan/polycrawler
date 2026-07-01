@@ -83,16 +83,21 @@ class LLMClient:
             return obj
         return None  # quarantine
 
-    def _call(self, messages) -> str:
+    def complete_text(self, system: str, user: str, *, max_tokens: int | None = None) -> str:
+        """Plain-text completion (no JSON mode) — for summaries / digests."""
+        return self._call([{"role": "system", "content": system},
+                           {"role": "user", "content": user}],
+                          json_mode=False, max_tokens=max_tokens)
+
+    def _call(self, messages, *, json_mode: bool = True, max_tokens: int | None = None) -> str:
+        kwargs = dict(model=self.model, messages=messages, temperature=self.temperature,
+                      max_tokens=max_tokens or self.max_tokens)
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
         last: Exception | None = None
         for attempt in range(self.max_retries):
             try:
-                resp = self._client.chat.completions.create(
-                    model=self.model, messages=messages,
-                    temperature=self.temperature, max_tokens=self.max_tokens,
-                    response_format={"type": "json_object"},
-                )
-                return resp.choices[0].message.content or ""
+                return self._client.chat.completions.create(**kwargs).choices[0].message.content or ""
             except Exception as e:  # noqa: BLE001 - retry any transport/quota error
                 last = e
                 if attempt < self.max_retries - 1:

@@ -17,15 +17,16 @@ except Exception:  # pragma: no cover - truststore optional at runtime
 USER_AGENT = "polycrawler/0.1 (research; +https://github.com/)"
 
 
-def openai_client(base_url: str, api_key_env: str = "NVIDIA_API_KEY"):
+def openai_client(base_url: str, api_key_env: str = "NVIDIA_API_KEY", *, timeout: float = 90.0):
     """OpenAI-compatible client for the hosted endpoint. Raises ValueError if the key
-    env var is unset (callers wrap it in their own LLM/Embeddings 'unavailable' error)."""
+    env var is unset (callers wrap it in their own LLM/Embeddings 'unavailable' error).
+    `timeout` caps each request so a slow/hung generation fails instead of blocking forever."""
     from openai import OpenAI  # lazy: only needed for real calls, not for tests
 
     api_key = os.environ.get(api_key_env)
     if not api_key:
         raise ValueError(f"{api_key_env} not set")
-    return OpenAI(base_url=base_url, api_key=api_key)
+    return OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
 
 
 def get(url: str, *, retries: int = 3, timeout: float = 30.0, headers: dict | None = None) -> httpx.Response:
