@@ -114,3 +114,13 @@ market which proves calibration, not beating the line, exactly as the brief fram
 ### What's real vs. toy
 - **Real:** leak-free point-in-time architecture + per-layer leakage tests; live NVIDIA extraction & embeddings; walk-forward backtest; isotonic calibration; CI eval gate.
 - **Honest limits:** RAG signals are live-World-Cup only (no contemporaneous text for historical EPL, so they're zero on the backtest); drift/quota are lightweight (PSI, cache-count) with Evidently notable as a swap-in; single league.
+
+## Disclaimer
+
+Research / educational project. **No real-money trading** — the decision layer only
+logs simulated positions and settles them against actual results. Data sources are
+used read-only via their official APIs/feeds, throttled politely.
+
+## License
+
+[MIT](LICENSE)
